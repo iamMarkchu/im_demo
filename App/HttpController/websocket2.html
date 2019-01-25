@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IM DEMO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <style>
+        html,body {
+            height: 100%;
+        }
+        body {
+            background-color: #efefef;
+        }
+    </style>
+</head>
+<body>
+<section id="app" class="section">
+    <div class="container">
+        <h1 class="title has-text-centered">IM DEMO</h1>
+        <div class="columns">
+            <div class="column">
+                <div class="box">
+                    <h5 class="title">在线用户列表</h5>
+                    <aside class="menu">
+                        <ul class="menu-list">
+                            <li v-for="user in onlineUsers" @click="select(user)"><a :class="{'is-active': selectedUser == user.id}">{{ user.id }} <span class="tag is-primary is-rounded is-pulled-right" v-if="user.count>0">{{user.count}}</span></a></li>
+                        </ul>
+                    </aside>
+                </div>
+                <div class="box">
+                    <h5 class="title">聊天室列表</h5>
+                    <a class="button is-info" @click="enterChatRoom">公共聊天室</a>
+                    <hr>
+                    <!--<div class="field">-->
+                    <!--<div class="control">-->
+                    <!--<input class="input" type="password" v-model="chatroomId" placeholder="聊天室id">-->
+                    <!--</div>-->
+                    <!--</div>-->
+                    <!--<a class="button">创建聊天室</a>-->
+                </div>
+                <div class="box">
+                    <div class="field">
+                        <label class="label">账号</label>
+                        <div class="control">
+                            <input class="input" type="text" v-model="loginUser.userId">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">密码</label>
+                        <div class="control">
+                            <input class="input" type="password" v-model="loginUser.pwd">
+                        </div>
+                    </div>
+                    <a class="button is-primary" @click="doLogin()">登录</a>
+                    <a class="button" @click="closeWebsocket()">退出</a>
+                </div>
+                <div class="box">
+                    <h5 class="title">消息提醒</h5>
+                    <ul>
+                        <li v-for="d in onMessageData">{{ d }}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="column is-three-quarters">
+                <div class="box">
+                    <h1 class="title" v-if="!enterRoom">与 {{ selectedUser }} 对话中</h1>
+                    <h1 class="title" v-else>公共聊天室</h1>
+                    <hr>
+                    <div class="message-history" style="height: 300px;padding: 10px; overflow-y: scroll">
+                        <article class="media" v-for="message in messages">
+                            <div class="media-content">
+                                <div :class="{content: true, 'has-text-right': message.from == loginUser.userId}">
+                                    <p>
+                                        <strong>{{ message.from }}</strong>
+                                        <br>
+                                        {{ message.data }}
+                                    </p>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                    <hr>
+                    <textarea name="" id="" cols="30" rows="5" class="textarea" style="margin-bottom: 10px;" v-model="content"></textarea>
+                    <a class="button is-primary" @click="sendMessage()">发送</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.22/dist/vue.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    let app = new Vue({
+        'el': '#app',
+        data() {
+            return {
+                onlineUsers: [],
+                ws: null,
+                selectedUser: '',
+                content: '',
+                messages: [],
+                onlines: [],
+                loginUser: {
+                    userId: '',
+                    pwd: '',
+                },
+                newMessageUsers: {},
+                chatroomId: '',
+                enterRoom: false,
+                onMessageData: [],
+            }
+        },
+        created() {
+            this.getOnlineUsers()
+        },
+        methods: {
+            closeWebsocket() {
+                this.ws.close()
+                this.ws = null
+            },
+            sendMessage() {
+                if (this.selectedUser == '') {
+                    alert('请选择要发送的用户')
+                    return;
+                }
+                let ret = {
+                    from: this.loginUser.userId,
+                    to: this.selectedUser,
+                    data: this.content,
+                    action: 'chat',
+                }
+                if (this.enterRoom) {
+                    ret.action = 'chatInRoom'
+                }
+                this.ws.send(JSON.stringify(ret))
+                this.messages.push(ret)
+                this.content = ''
+            },
+            getHistory() {
+                axios.get('/chat/history', {params:{from: this.loginUser.userId, to: this.selectedUser}}).then((response) => {
+                    this.messages = response.data.result.map(function(item) {
+                        return JSON.parse(item)
+                    })
+                })
+            },
+            getOnlineUsers() {
+                axios.get('/chat/users').then((response) => {
+                    console.log(response.data)
+                    this.onlineUsers = response.data.result.map(function(item) {
+                        return {id: item, count: 0}
+                    })
+
+                    if (this.selectedUser == '')
+                        this.selectedUser = this.onlineUsers[0].id
+                })
+            },
+            doLogin() {
+                let wsServer = 'ws://'+ location.host+'/?userId='+ this.loginUser.userId + '&pwd=' + this.loginUser.pwd;
+                if (this.ws != null || this.loginUser.userId == '' || this.loginUser.pwd == '')
+                    return;
+                this.ws = new WebSocket(wsServer)
+                let that = this
+                this.ws.onmessage = function (message) {
+                    console.log(message.data)
+                    let data = JSON.parse(message.data)
+                    that.onMessageData.push(data)
+                    if (data.from == 'admin') {
+                        that.getOnlineUsers()
+                        return;
+                    }
+                    if (data.broadcast != undefined && that.enterRoom == true) {
+                        that.messages.push(data)
+                        return;
+                    }
+                    for (let i=0;i<that.onlineUsers.length;i++) {
+                        if (that.onlineUsers[i].id == data.from && that.selectedUser != data.from) {
+                            that.onlineUsers[i].count++
+                        }
+                    }
+                    if (that.selectedUser == data.from) {
+                        that.messages.push(data)
+                    }
+                }
+                this.ws.onopen = function () {
+                    console.log("connect success!")
+                }
+                this.ws.onclose = function (data) {
+                    console.log("close!", data.reason)
+                }
+                this.getOnlineUsers()
+            },
+            select(user) {
+                user.count = 0
+                this.selectedUser = user.id
+                this.enterRoom = false;
+            },
+            enterChatRoom() {
+                let chatroomtId = 1;
+                this.enterRoom = true;
+                this.selectedUser = chatroomtId;
+                // 调进入聊天室接口
+                axios.get('/joinRoom', {params: {chatroomId: chatroomtId, userid: this.loginUser.userId}})
+                    .then((response) => {
+                        console.log('加入成功!')
+                    })
+                // 拉聊天室历史
+                axios.get('/chatroom_history', {params: {chatroomId: chatroomtId}})
+                    .then((response) => {
+                        this.messages = response.data
+                    })
+            },
+            checkLogined() {
+                return this.loginUser.userId != ''
+            }
+        },
+        watch: {
+            selectedUser: function() {
+                this.getHistory()
+            }
+        }
+    })
+
+</script>
+</html>

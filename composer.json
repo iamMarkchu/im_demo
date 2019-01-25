@@ -1,0 +1,21 @@
+{
+    "name": "mark/easyswoole-demo",
+    "authors": [
+        {
+            "name": "褚魁",
+            "email": "18627032049@163.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.1.0",
+        "easyswoole/easyswoole": "3.x-dev",
+        "ext-swoole": ">=4.0.3",
+        "ext-json": "*",
+        "ext-redis": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "App/"
+        }
+    }
+}

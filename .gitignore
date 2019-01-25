@@ -1,0 +1,6 @@
+/vendor
+Log/
+Temp/
+composer.lock
+dev.php
+produce.php
