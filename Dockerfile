@@ -1,6 +1,6 @@
 FROM php:7.2
 
-LABEL maintainer="encircles@163.com"
+LABEL maintainer="18627032049@163.com"
 
 # Version
 ENV PHPREDIS_VERSION 4.0.1
@@ -71,12 +71,15 @@ RUN wget https://github.com/swoole/swoole-src/archive/v${SWOOLE_VERSION}.tar.gz 
     && rm -r swoole \
     && docker-php-ext-enable swoole
 
+COPY . /var/www/code
+
 WORKDIR /var/www/code
 
 # Install easyswoole
-RUN cd /var/www/code \
-    && composer install \
+RUN composer install --no-dev\
+    && composer dump-autoload -o \
+    && composer clearcache
 
-EXPOSE 80
+EXPOSE 8889
 
 ENTRYPOINT ["php", "/var/www/code/easyswoole", "start"]
