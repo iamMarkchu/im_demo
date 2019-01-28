@@ -27,7 +27,9 @@ class WebSocketEvent
             // 握手成功，加入用户到在线用户列表
             WebsocketClient::getInstance()->userOnline($request->get['userId'], $request->fd);
             //todo 广播给所有在线用户，有用户上线
-
+            WebsocketClient::getInstance()->broadcast($request->get['userId'].':上线了');
+            // 检查是否有没有推的消息，继续推送
+            WebsocketClient::getInstance()->pushUnPushMsg($request->get['userId']);
             $response->end();
             return true;
         }

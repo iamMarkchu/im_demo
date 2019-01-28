@@ -59,8 +59,10 @@ class EasySwooleEvent implements Event
 
         $register->add($register::onWorkerStart,function (\swoole_server $server,int $workerId){
             if ($workerId == 0) {
+                // 启动进程时，删除所有在线用户
                 WebsocketClient::getInstance()->delAllRegisters();
-                var_dump('删除所有在线用户');
+                // 开启发消息协程
+                WebsocketClient::getInstance()->startSendLoop();
             }
         });
     }

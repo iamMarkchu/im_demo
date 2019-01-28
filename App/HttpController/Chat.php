@@ -10,12 +10,14 @@ namespace App\HttpController;
 
 use App\WebSocket\WebsocketClient;
 use EasySwoole\Http\AbstractInterface\Controller;
+use EasySwoole\Http\Message\Status;
+use EasySwoole\Validate\Validate;
 
 class Chat extends Controller
 {
     public function index()
     {
-        $this->response()->sendFile(__DIR__.'/websocket2.html');
+        $this->response()->sendFile(__DIR__ . '/websocket2.html');
     }
 
     /**
@@ -48,6 +50,9 @@ class Chat extends Controller
      */
     public function joinRoom()
     {
+        $chatRoomId = $this->request()->getRequestParam('chatRoomId');
+        $userId = $this->request()->getRequestParam('userId');
+        WebsocketClient::getInstance()->joinRoom($userId, $chatRoomId);
         $this->writeJson(200, 'ok', '加入聊天室成功!');
     }
 
@@ -56,6 +61,31 @@ class Chat extends Controller
      */
     public function chatRoomHistory()
     {
-        $this->writeJson(200, 'ok', '获取聊天室消息历史成功!');
+        $chatRoomId = $this->request()->getRequestParam('chatRoomId');
+        $list = WebsocketClient::getInstance()->getRoomHistory($chatRoomId);
+        $this->writeJson(200, $list, '获取聊天室消息历史成功!');
+    }
+
+    /**
+     * 发送消息
+     */
+    public function send()
+    {
+        $validate = new Validate();
+        $validate->addColumn('from')->required('from:用户名必填!');
+        $validate->addColumn('to')->required('to:用户名必填!');
+        $validate->addColumn('content')->required('发送正文必须!');
+        if ($this->validate($validate)) {
+            $dada = [
+                'from'   => $this->request()->getRequestParam('from'),
+                'to'     => $this->request()->getRequestParam('to'),
+                'action' => 'chat',
+                'data'   => $this->request()->getRequestParam('content'),
+            ];
+            WebsocketClient::getInstance()->sendMsg($dada);
+            $this->writeJson(Status::CODE_OK, null, 'success');
+        } else {
+            $this->writeJson(Status::CODE_BAD_REQUEST, $validate->getError()->__toString(), 'fail');
+        }
     }
 }

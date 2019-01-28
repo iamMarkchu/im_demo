@@ -64,7 +64,7 @@ RUN wget https://github.com/swoole/swoole-src/archive/v${SWOOLE_VERSION}.tar.gz 
     && ( \
     cd swoole \
     && phpize \
-    && ./configure --enable-async-redis --enable-mysqlnd --enable-openssl --enable-http2 \
+    && ./configure --enable-mysqlnd --enable-openssl --enable-http2 \
     && make -j$(nproc) \
     && make install \
     ) \
@@ -76,10 +76,11 @@ COPY . /var/www/code
 WORKDIR /var/www/code
 
 # Install easyswoole
-RUN composer install --no-dev\
+RUN composer config -g repo.packagist composer https://packagist.laravel-china.org \
+    && composer install --no-dev\
     && composer dump-autoload -o \
     && composer clearcache
 
-EXPOSE 8889
+EXPOSE 9501
 
 ENTRYPOINT ["php", "/var/www/code/easyswoole", "start"]
