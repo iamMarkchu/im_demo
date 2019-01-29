@@ -76,13 +76,20 @@ class Chat extends Controller
         $validate->addColumn('to')->required('to:用户名必填!');
         $validate->addColumn('content')->required('发送正文必须!');
         if ($this->validate($validate)) {
-            $dada = [
+            $data = [
                 'from'   => $this->request()->getRequestParam('from'),
                 'to'     => $this->request()->getRequestParam('to'),
                 'action' => 'chat',
                 'data'   => $this->request()->getRequestParam('content'),
             ];
-            WebsocketClient::getInstance()->sendMsg($dada);
+            $msgType = $this->request()->getRequestParam('msgType');
+            if (!$msgType)
+                $msgType = 'single';
+            if ($msgType == 'single') {
+                WebsocketClient::getInstance()->sendMsg($data);
+            } else {
+                WebsocketClient::getInstance()->sendRoomMsg($data);
+            }
             $this->writeJson(Status::CODE_OK, null, 'success');
         } else {
             $this->writeJson(Status::CODE_BAD_REQUEST, $validate->getError()->__toString(), 'fail');
